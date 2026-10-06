@@ -1,0 +1,37 @@
+name: Facebook Ads Checker
+
+on:
+  schedule:
+    - cron: '0 3-14/5 * * *'  # Каждые 5 часов с 09:00 до 20:00 по времени Алматы
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🔐 Create credentials.json
+        run: echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+
+      - name: 🚀 Run payment check
+        env:
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_FORUM_CHAT_ID: ${{ secrets.TELEGRAM_FORUM_CHAT_ID }}
+          TELEGRAM_THREAD_ID: "2"     # 🔥 тема форума для ошибок оплаты
+          GOOGLE_SHEET_URL: ${{ secrets.GOOGLE_SHEET_URL }}
+        run: python main.py
+
+      - name: ✅ Log completion
+        run: echo "Script executed successfully"
