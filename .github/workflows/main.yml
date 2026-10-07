@@ -2,7 +2,7 @@ name: Facebook Ads Checker
 
 on:
   schedule:
-    - cron: '0 3-14/5 * * *'  # Каждые 5 часов с 09:00 до 20:00 по времени Алматы
+    - cron: '0 4,9,14 * * *'  # 09:00, 14:00, 19:00 Алматы
   workflow_dispatch:
 
 jobs:
