@@ -29,7 +29,7 @@ jobs:
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_FORUM_CHAT_ID: ${{ secrets.TELEGRAM_FORUM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: "2"     # 🔥 тема форума для ошибок оплаты
+          TELEGRAM_THREAD_ID: "5"     # 🔥 тема форума для ошибок оплаты
           GOOGLE_SHEET_URL: ${{ secrets.GOOGLE_SHEET_URL }}
         run: python main.py
 
