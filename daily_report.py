@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import requests
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -53,24 +54,18 @@ def get_yesterday_date_ru():
     month_ru = MONTHS_RU[yesterday.strftime("%B")]
     return f"{day} {month_ru}"
 
+
 def tg_send_to_forum_topic(text: str) -> None:
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-
     payload = {
         "chat_id": TELEGRAM_FORUM_CHAT_ID,
         "message_thread_id": TELEGRAM_THREAD_ID,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
-
     r = requests.post(url, data=payload, timeout=30)
-
-    if not r.ok:
-        print(f"Telegram API error: {r.status_code}")
-        print(f"Telegram response: {r.text}")
-        r.raise_for_status()
-
+    r.raise_for_status()
 
 
 # -------------------------
@@ -297,48 +292,44 @@ def get_filtered_data(ad_accounts: dict) -> dict:
 
 
 def build_message(report: dict) -> str:
-    yesterday_date = get_yesterday_date_ru()
+    yesterday_date = html.escape(get_yesterday_date_ru())
+    total_sales = sum(data["sales"] for data in report["cabinets_with_sales"].values())
+    lines = [
+        f"📊 <b>Реклама · {yesterday_date}</b>",
+        f"Кабинеты: {report['total_accounts']} · активных: {len(report['active_ad_accounts'])}",
+        f"💬 Переписки: {report['total_conversations']} · 🛒 Продажи: {total_sales}",
+        f"💰 Затраты на переписки: {report['total_spend']:.2f} $",
+        f"CPA переписки: {report['avg_cpa_weighted']:.2f} $",
+        f"CPA по кабинетам: {report['avg_cpa_by_accounts']:.2f} $",
+    ]
 
-    message = f"📊 Отчёт по рекламе за {yesterday_date}\n\n"
-    message += f"📌 Всего рекламных кабинетов: {report['total_accounts']}\n"
-    message += f"📢 Активных кабинетов: {len(report['active_ad_accounts'])}\n\n"
+    if report["cabinets_with_conversations"]:
+        lines.append(f"\n<b>💬 Переписки ({len(report['cabinets_with_conversations'])})</b>")
+        for name, data in report["cabinets_with_conversations"].items():
+            lines.append(
+                f"• <b>{html.escape(str(name))}</b>: {data['conversations']} · "
+                f"CPA {data['avg_cpa']:.2f} $"
+            )
 
-    message += f"💬 Кабинеты с переписками ({len(report['cabinets_with_conversations'])}):\n"
-    for name, data in report["cabinets_with_conversations"].items():
-        message += (
-            f"➤ *{name}* - {data['conversations']} переписок | "
-            f"CPA: {data['avg_cpa']:.2f} $ | Кампаний: {data['active_campaigns']}\n"
-        )
+    if report["cabinets_with_sales"]:
+        lines.append(f"\n<b>🛒 Продажи ({len(report['cabinets_with_sales'])})</b>")
+        for name, data in report["cabinets_with_sales"].items():
+            lines.append(
+                f"• <b>{html.escape(str(name))}</b>: {data['sales']} · "
+                f"CPA {data['avg_cpa']:.2f} $"
+            )
 
-    message += f"\n🛒 Кабинеты с продажами ({len(report['cabinets_with_sales'])}):\n"
-    for name, data in report["cabinets_with_sales"].items():
-        message += (
-            f"➤ *{name}* - {data['sales']} продаж | "
-            f"CPA: {data['avg_cpa']:.2f} $ | Кампаний: {data['active_campaigns']}\n"
-        )
+    for key, label in (
+        ("cabinets_no_conversations", "⚠️ Без переписок"),
+        ("cabinets_no_messaging_ads", "🚫 Без рекламы на переписки"),
+        ("inactive_ad_accounts", "🛑 Неактивные"),
+    ):
+        names = report[key]
+        if names:
+            escaped_names = ", ".join(html.escape(str(name)) for name in names)
+            lines.append(f"\n{label} ({len(names)}): {escaped_names}")
 
-    message += f"\n⚠️ Кабинеты с рекламой, но без переписок ({len(report['cabinets_no_conversations'])}):\n"
-    for name in report["cabinets_no_conversations"]:
-        message += f"➤ *{name}*\n"
-
-    message += f"\n🚫 Кабинеты без рекламы на переписки ({len(report['cabinets_no_messaging_ads'])}):\n"
-    message += ", ".join(report["cabinets_no_messaging_ads"]) if report["cabinets_no_messaging_ads"] else "-"
-
-    message += f"\n\n🛑 *Неактивные кабинеты ({len(report['inactive_ad_accounts'])}):*\n"
-    message += ", ".join(report["inactive_ad_accounts"]) if report["inactive_ad_accounts"] else "-"
-
-    message += f"\n\n💰 Всего потрачено: {report['total_spend']:.2f} $\n"
-    message += f"📨 Всего переписок: {report['total_conversations']}\n"
-    message += (
-        f"⚡ Средняя цена за переписку (взвешенная): {report['avg_cpa_weighted']:.2f} $\n"
-        f"  ➤  рассчитывается по формуле общие расходы / общее число переписок\n"
-    )
-    message += (
-        f"🧮 Средняя цена по кабинетам: {report['avg_cpa_by_accounts']:.2f} $\n"
-        f"  ➤  это простое среднее арифметическое всех CPA по кабинетам\n"
-    )
-
-    return message
+    return "\n".join(lines)
 
 
 def send_telegram_report():
@@ -356,7 +347,7 @@ def send_telegram_report():
 
             summary = f"Daily report ok: spend ${report['total_spend']:.2f}, conversations={report['total_conversations']}, accounts={report['total_accounts']}"
             artifacts = [
-                {"type": "text", "value": message, "meta": {"format": "telegram_markdown"}},
+                {"type": "text", "value": message, "meta": {"format": "telegram_html"}},
                 {"type": "json", "value": json.dumps(report, ensure_ascii=False), "meta": {"name": "report"}},
             ]
 
