@@ -53,9 +53,9 @@ def get_yesterday_date_ru():
     month_ru = MONTHS_RU[yesterday.strftime("%B")]
     return f"{day} {month_ru}"
 
-
 def tg_send_to_forum_topic(text: str) -> None:
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
     payload = {
         "chat_id": TELEGRAM_FORUM_CHAT_ID,
         "message_thread_id": TELEGRAM_THREAD_ID,
@@ -63,8 +63,14 @@ def tg_send_to_forum_topic(text: str) -> None:
         "parse_mode": "Markdown",
         "disable_web_page_preview": True,
     }
+
     r = requests.post(url, data=payload, timeout=30)
-    r.raise_for_status()
+
+    if not r.ok:
+        print(f"Telegram API error: {r.status_code}")
+        print(f"Telegram response: {r.text}")
+        r.raise_for_status()
+
 
 
 # -------------------------
