@@ -251,6 +251,7 @@ def get_filtered_data(ad_accounts: dict) -> dict:
 
             cabinets_with_conversations[ad_name] = {
                 "conversations": conversations_total,
+                "spend": spend_for_messaging,
                 "avg_cpa": avg_cpa,
                 "active_campaigns": active_campaigns_count,
             }
@@ -268,6 +269,7 @@ def get_filtered_data(ad_accounts: dict) -> dict:
             avg_sale_cpa = (spend_for_sales / sales_total) if sales_total > 0 else 0
             cabinets_with_sales[ad_name] = {
                 "sales": sales_total,
+                "spend": spend_for_sales,
                 "avg_cpa": avg_sale_cpa,
                 "active_campaigns": sales_campaigns_count[ad_name],
             }
@@ -293,11 +295,10 @@ def get_filtered_data(ad_accounts: dict) -> dict:
 
 def build_message(report: dict) -> str:
     yesterday_date = html.escape(get_yesterday_date_ru())
-    total_sales = sum(data["sales"] for data in report["cabinets_with_sales"].values())
     lines = [
         f"📊 <b>Реклама · {yesterday_date}</b>",
         f"Кабинеты: {report['total_accounts']} · активных: {len(report['active_ad_accounts'])}",
-        f"💬 Переписки: {report['total_conversations']} · 🛒 Продажи: {total_sales}",
+        f"💬 Переписки: {report['total_conversations']}",
         f"💰 Затраты на переписки: {report['total_spend']:.2f} $",
         f"CPA переписки: {report['avg_cpa_weighted']:.2f} $",
         f"CPA по кабинетам: {report['avg_cpa_by_accounts']:.2f} $",
@@ -308,7 +309,7 @@ def build_message(report: dict) -> str:
         for name, data in report["cabinets_with_conversations"].items():
             lines.append(
                 f"• <b>{html.escape(str(name))}</b>: {data['conversations']} · "
-                f"CPA {data['avg_cpa']:.2f} $"
+                f"Затраты {data['spend']:.2f} $ · CPA {data['avg_cpa']:.2f} $"
             )
 
     if report["cabinets_with_sales"]:
@@ -316,7 +317,7 @@ def build_message(report: dict) -> str:
         for name, data in report["cabinets_with_sales"].items():
             lines.append(
                 f"• <b>{html.escape(str(name))}</b>: {data['sales']} · "
-                f"CPA {data['avg_cpa']:.2f} $"
+                f"Затраты {data['spend']:.2f} $ · CPA {data['avg_cpa']:.2f} $"
             )
 
     for key, label in (
